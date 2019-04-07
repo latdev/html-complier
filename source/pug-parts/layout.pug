@@ -1,0 +1,15 @@
+doctype html
+html
+    head
+        meta(charset="UTF-8")
+        title Demolition Masters
+        block styles
+    body(ng-app="appmain")
+        block content
+        script(src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.7.8/angular.min.js" integrity="sha256-23hi0Ag650tclABdGCdMNSjxvikytyQ44vYGo9HyOrU=" crossorigin="anonymous")
+        script(type="module" src="/app/app.mjs")
+        block script
+        script
+            | window.god = {
+            |   'server': '//127.0.0.1:2866',
+            | }
