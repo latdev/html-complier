@@ -5,11 +5,7 @@ const path = require("path");
 const util = require("util");
 const fs = require("fs");
 const ts = require("typescript");
-
-function requireUncached(module) {
-  delete require.cache[require.resolve(module)];
-  return require(module);
-}
+const lessc = require("less");
 
 async function fmtime(path) {
     return new Promise(function(resolve, reject) {
@@ -25,17 +21,13 @@ async function fmtime(path) {
     });
 }
 
-async function tsTranspile(tsCode, outfile) {
-    return ;
-}
-
 app.get(/\.html$/, async function(req, res) {
     let infile = path.join(__dirname, "source", req.url.replace(/\.html$/, '.pug')),
         outfile = path.join(__dirname, "public", req.url),
         intime = 0;
     try {
         intime = await fmtime(infile);
-        fs.mkdirSync(outfile.replace(/\/[^\/]+$/, ''), { recursive: true });
+        fs.mkdirSync(path.resolve(outfile), { recursive: true });
     } catch {}
     if (intime > 0) {
         try {
@@ -56,7 +48,6 @@ app.get(/\.html$/, async function(req, res) {
     }
 });
 
-
 app.get(/\.mjs$/, async function(req, res) {
     let infile = path.join(__dirname, 'source', req.url.replace(/\.mjs$/, '.ts')),
         outfile = path.join(__dirname, 'public', req.url),
@@ -64,13 +55,12 @@ app.get(/\.mjs$/, async function(req, res) {
 
     try {
         intime = await fmtime(infile);
-        fs.mkdirSync(outfile.replace(/\/[^\/]+$/, ''), { recursive: true });
+        fs.mkdirSync(path.resolve(outfile), { recursive: true });
     } catch {}
 
     if (intime > 0) {
         try {
-            let source = "" + fs.readFileSync(infile);
-            let jscode = await ts.transpileModule(source, {
+            let jscode = await ts.transpileModule(fs.readFileSync(infile).toString(), {
                 compilerOptions: {
                     module: ts.ModuleKind.ES6,
                     allowSyntheticDefaultImports: true,
@@ -89,6 +79,36 @@ app.get(/\.mjs$/, async function(req, res) {
             fs.writeFileSync(outfile, jscode.outputText, 'utf8');
             res.header("Content-Type", "application/javascript; charset=UTF-8");
             res.send(jscode.outputText);
+        } catch (error) {
+            res.type('txt').send(error.message)
+        }
+    } else {
+        res.sendStatus(404);
+    }
+});
+
+app.get(/\.css$/, async function(req, res) {
+    let infile = path.join(__dirname, "source", req.url.replace(/\.css$/, '.less')),
+        outfile = path.join(__dirname, "public", req.url),
+        mapfile = path.join(__dirname, "public", req.url.replace(/\.css$/, '.css.map')),
+        mapindex = req.url.replace(/\.css$/, '.css.map'),
+        intime = 0;
+    try {
+        intime = await fmtime(infile);
+        fs.mkdirSync(path.resolve(outfile), { recursive: true });
+    } catch {}    
+    if (intime > 0) {    
+        try {
+            let output = await lessc.render(fs.readFileSync(infile).toString(), {
+                filename: path.resolve(infile),
+                sourceMap: {
+                    outputFilename: mapindex
+                }
+            });
+
+            fs.writeFileSync(outfile, output.css, 'utf8');
+            res.header("Content-Type", "text/css; charset=UTF-8");
+            res.send(output.css);
         } catch (error) {
             res.type('txt').send(error.message)
         }
